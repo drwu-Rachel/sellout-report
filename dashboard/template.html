@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sellout Dashboard</title>
+<!-- 樣板檔：由 scripts/build_dashboard.py 填入資料，產生 sellout_dashboard.html。請改這個檔，不要改產生的檔。 -->
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --hover: rgba(11,11,11,0.04);
+  --accent: #2a78d6;
+  --good: #006300;
+  --bad: #d03b3b;
+  --series-0: #2a78d6;   /* 屈臣氏 */
+  --series-1: #eb6834;   /* 康是美 */
+  --track: #f0efec;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --hover: rgba(255,255,255,0.05);
+    --accent: #3987e5;
+    --good: #0ca30c;
+    --bad: #e66767;
+    --series-0: #3987e5;
+    --series-1: #d95926;
+    --track: #262624;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255,255,255,0.10);
+  --hover: rgba(255,255,255,0.05);
+  --accent: #3987e5;
+  --good: #0ca30c;
+  --bad: #e66767;
+  --series-0: #3987e5;
+  --series-1: #d95926;
+  --track: #262624;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif;
+}
+.wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+header h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+header p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.notice { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text-secondary); font-size: 13px; }
+.notice strong { color: var(--text-primary); font-weight: 600; }
+
+/* 篩選列 */
+.filters { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin: 20px 0 16px; }
+.field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field > .lbl { color: var(--text-secondary); font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px;
+  padding: 5px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button:hover { background: var(--hover); }
+.seg button[aria-pressed="true"] { background: var(--text-primary); color: var(--surface); font-weight: 600; }
+input[type=date] { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface); color: var(--text-primary); }
+label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; }
+
+/* 卡片 */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.card .sub { color: var(--text-secondary); font-size: 12px; margin: 2px 0 0; }
+.grid { display: grid; gap: 16px; }
+.grid.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 860px) { .grid.two { grid-template-columns: minmax(0, 1fr); } }
+section { margin-top: 16px; }
+
+/* 數字卡 */
+.kpis { display: grid; grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 960px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpis .hero { grid-column: 1 / -1; } }
+.kpi .label { color: var(--text-secondary); font-size: 13px; }
+.kpi .value { font-size: 26px; font-weight: 600; margin-top: 4px; line-height: 1.2; }
+.kpi.hero .value { font-size: 48px; }
+.kpi .unit { font-size: 15px; font-weight: 500; color: var(--text-secondary); margin-left: 4px; }
+.kpi .note { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+
+/* 圖例 */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.legend i.line { width: 14px; height: 2px; border-radius: 1px; }
+
+/* SVG 圖表 */
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart text.end-label { fill: var(--text-secondary); font-size: 12px; font-variant-numeric: normal; }
+.chart text.val { fill: var(--text-secondary); font-size: 11px; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .baseline { stroke: var(--axis); stroke-width: 1; }
+.chart .crosshair { stroke: var(--text-muted); stroke-width: 1; }
+.chart .hit { fill: transparent; }
+.chart .bar:hover, .chart .bar.on { opacity: .8; }
+
+/* 橫條排行（HTML） */
+.rank { display: grid; grid-template-columns: minmax(0, 22em) minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; font-size: 13px; }
+@media (max-width: 600px) { .rank { grid-template-columns: minmax(0, 9em) minmax(0, 1fr) auto; } }
+.rank .row { display: contents; }
+.rank .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.rank .name small { color: var(--text-muted); margin-right: 6px; font-variant-numeric: tabular-nums; }
+.rank .track { display: flex; gap: 2px; height: 18px; align-items: stretch; }
+.rank .seg-bar { height: 100%; min-width: 0; }
+.rank .seg-bar:last-child { border-radius: 0 4px 4px 0; }
+.rank .num { text-align: right; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rank .row:hover .name, .rank .row:focus-within .name { text-decoration: underline; }
+.rank .hitrow { cursor: default; }
+
+/* 表格 */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--grid); text-align: left; white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 500; position: sticky; top: 0; background: var(--surface); }
+th button { all: unset; cursor: pointer; }
+th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+td.name { white-space: normal; min-width: 16em; }
+tbody tr:hover { background: var(--hover); }
+.up { color: var(--good); }
+.down { color: var(--bad); }
+.tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--border);
+  color: var(--text-secondary); margin-left: 6px; vertical-align: 1px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.muted { color: var(--text-muted); }
+.scroll { max-height: 520px; overflow: auto; }
+
+/* 提示框 */
+#tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12); min-width: 140px; display: none; }
+#tip .t { color: var(--text-secondary); margin-bottom: 4px; }
+#tip .r { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+#tip .r b { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+#tip .r span { color: var(--text-secondary); }
+#tip .k { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+.empty { color: var(--text-muted); padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sellout Dashboard</h1>
+    <p id="meta"></p>
+    <div class="notice" id="notice"></div>
+  </header>
+
+  <div class="filters" role="group" aria-label="篩選">
+    <div class="field"><span class="lbl">期間</span><div class="seg" id="presets"></div>
+      <input type="date" id="from" aria-label="開始日期"><span class="muted">～</span><input type="date" id="to" aria-label="結束日期"></div>
+    <div class="field"><span class="lbl">通路</span><div class="seg" id="chSeg"></div></div>
+    <label class="check"><input type="checkbox" id="noTrial"> 排除試用品、體驗包</label>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>銷售金額趨勢</h2><p class="sub" id="trendSub"></p></div>
+      <div class="field"><div class="legend" id="trendLegend"></div><div class="seg" id="granSeg"></div></div>
+    </div>
+    <div class="chart" id="trend"></div>
+  </section>
+
+  <section class="grid two">
+    <div class="card">
+      <div class="card-head">
+        <div><h2>各月日均銷售金額</h2><p class="sub">兩通路資料期間不同，用「每天平均」比較才公平</p></div>
+        <div class="legend" id="monthLegend"></div>
+      </div>
+      <div class="chart" id="monthly"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>月份比較</h2><p class="sub">月增率用日均金額計算，不受天數多寡影響</p></div></div>
+      <div class="table-wrap"><table id="monthTable"></table></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>商品排行</h2><p class="sub" id="rankSub"></p></div>
+      <div class="field"><div class="legend" id="rankLegend"></div><div class="seg" id="rankBySeg"></div><div class="seg" id="rankNSeg"></div></div>
+    </div>
+    <div class="rank" id="rank"></div>
+  </section>
+
+  <section class="card" id="storeCard">
+    <div class="card-head">
+      <div><h2>屈臣氏門市排行（前 15 名）</h2><p class="sub">康是美報表沒有門市資料</p></div>
+    </div>
+    <div class="rank" id="stores"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>商品明細</h2><p class="sub">點欄位名稱排序。沒有條碼的康是美商品，請到 康是美品號對照.csv 補上，才能和屈臣氏合併。</p></div>
+    </div>
+    <div class="table-wrap scroll"><table id="prodTable"></table></div>
+  </section>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+// ---------- 小工具 ----------
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs = {}, kids = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'text') e.textContent = v;
+    else if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of [].concat(kids)) if (c != null) e.append(c);
+  return e;
+}
+function svg(tag, attrs = {}, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  return e;
+}
+const nf0 = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 1 });
+const money = v => 'NT$' + nf0.format(Math.round(v));
+const int = v => nf0.format(Math.round(v));
+function compact(v) {           // 軸、數字卡用：1.2億 / 345.6萬 / 9,800
+  const a = Math.abs(v);
+  if (a >= 1e8) return nf1.format(v / 1e8) + '億';
+  if (a >= 1e4) return nf1.format(v / 1e4) + '萬';
+  return nf0.format(v);
+}
+const pct = v => (v > 0 ? '+' : '') + nf1.format(v * 100) + '%';
+const color = ch => `var(--series-${ch})`;
+const md = d => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
+const monthLabel = m => `${+m.slice(5, 7)} 月`;
+
+function niceStep(x) {
+  const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+}
+function niceTicks(min, max, count = 4) {
+  if (max <= min) max = min + 1;
+  const step = niceStep((max - min) / count);
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step;
+  const t = [];
+  for (let v = lo; v <= hi + step / 2; v += step) t.push(+v.toFixed(6));
+  return t;
+}
+
+// ---------- 提示框 ----------
+const tip = $('tip');
+function showTip(evt, title, rows) {
+  tip.replaceChildren(el('div', { class: 't', text: title }),
+    ...rows.map(r => el('div', { class: 'r' }, [
+      r.color ? el('i', { class: 'k', style: `background:${r.color}` }) : null,
+      el('b', { text: r.value }), el('span', { text: r.label })])));
+  tip.style.display = 'block';
+  let x, y;
+  if (evt.clientX != null && evt.type !== 'focus') { x = evt.clientX; y = evt.clientY; }
+  else { const b = evt.target.getBoundingClientRect(); x = b.left + b.width / 2; y = b.top; }
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 14, top = y - h - 10;
+  if (left + w > innerWidth - 8) left = x - w - 14;
+  if (left < 8) left = 8;
+  if (top < 8) top = y + 16;
+  tip.style.left = left + 'px'; tip.style.top = top + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+
+// ---------- 狀態與篩選 ----------
+const CH = DATA.channels, P = DATA.products, D = DATA.dates;
+const months = [...new Set(D.map(d => d.slice(0, 7)))];
+// 各通路有資料的日期範圍：範圍內沒有銷售的日子算 0，範圍外算「沒有資料」
+const chRange = CH.map((_, c) => {
+  let lo = Infinity, hi = -1;
+  for (const f of DATA.facts) if (f[0] === c) { lo = Math.min(lo, f[2]); hi = Math.max(hi, f[2]); }
+  return [lo, hi];
+});
+const state = { from: D[0], to: D[D.length - 1], ch: 'all', noTrial: false, gran: 'day', rankBy: 'amt', rankN: 10,
+  sort: { key: 'amt', dir: -1 } };
+
+function filtered() {
+  const lo = D.indexOf(state.from), hi = D.indexOf(state.to);
+  return DATA.facts.filter(f => f[2] >= lo && f[2] <= hi &&
+    (state.ch === 'all' || f[0] === state.ch) && !(state.noTrial && P[f[3]].trial));
+}
+const activeCh = () => state.ch === 'all' ? CH.map((_, i) => i) : [state.ch];
+function inView(c, di) {   // 某通路在某日期是否「有資料」（在篩選範圍內，且在該通路資料期間內）
+  return di >= D.indexOf(state.from) && di <= D.indexOf(state.to) && di >= chRange[c][0] && di <= chRange[c][1];
+}
+
+// ---------- 篩選控制項 ----------
+function segButtons(container, items, isOn, onPick) {
+  container.replaceChildren(...items.map(it => el('button', {
+    type: 'button', text: it.label, 'aria-pressed': String(isOn(it.value)),
+    onclick: () => { onPick(it.value); render(); } })));
+}
+function setRange(from, to) {
+  if (from > to) [from, to] = [to, from];
+  state.from = D.find(d => d >= from) || D[D.length - 1];
+  state.to = [...D].reverse().find(d => d <= to) || D[0];
+}
+function renderControls() {
+  const presets = [{ label: '全部', value: [D[0], D[D.length - 1]] },
+    ...months.map(m => ({ label: monthLabel(m), value: [m + '-01', m + '-31'] }))];
+  segButtons($('presets'), presets, v => {
+    const lo = D.find(d => d >= v[0]), hi = [...D].reverse().find(d => d <= v[1]);
+    return state.from === lo && state.to === hi;
+  }, v => setRange(v[0], v[1]));
+  for (const id of ['from', 'to']) { $(id).min = D[0]; $(id).max = D[D.length - 1]; $(id).value = state[id]; }
+  segButtons($('chSeg'), [{ label: '全部', value: 'all' }, ...CH.map((c, i) => ({ label: c, value: i }))],
+    v => state.ch === v, v => { state.ch = v; });
+  segButtons($('granSeg'), [{ label: '日', value: 'day' }, { label: '週', value: 'week' }, { label: '月', value: 'month' }],
+    v => state.gran === v, v => { state.gran = v; });
+  segButtons($('rankBySeg'), [{ label: '金額', value: 'amt' }, { label: '數量', value: 'qty' }],
+    v => state.rankBy === v, v => { state.rankBy = v; });
+  segButtons($('rankNSeg'), [{ label: '前 10', value: 10 }, { label: '前 20', value: 20 }],
+    v => state.rankN === v, v => { state.rankN = v; });
+  $('noTrial').checked = state.noTrial;
+  const legend = () => activeCh().map(c => el('span', {}, [el('i', { style: `background:${color(c)}` }), CH[c]]));
+  $('monthLegend').replaceChildren(...legend());
+  $('rankLegend').replaceChildren(...legend());
+  $('trendLegend').replaceChildren(...activeCh().map(c =>
+    el('span', {}, [el('i', { class: 'line', style: `background:${color(c)}` }), CH[c]])));
+}
+$('from').addEventListener('change', e => { if (e.target.value) { setRange(e.target.value, state.to); render(); } });
+$('to').addEventListener('change', e => { if (e.target.value) { setRange(state.from, e.target.value); render(); } });
+$('noTrial').addEventListener('change', e => { state.noTrial = e.target.checked; render(); });
+
+// ---------- 數字卡 ----------
+function renderKpis(rows) {
+  let amt = 0, qty = 0;
+  const days = new Set(), prods = new Set(), stores = new Set();
+  for (const f of rows) { qty += f[4]; amt += f[5]; days.add(f[2]); prods.add(f[3]); if (f[1] >= 0) stores.add(f[1]); }
+  const tile = (label, value, unit, note, hero) => el('div', { class: 'card kpi' + (hero ? ' hero' : '') }, [
+    el('div', { class: 'label', text: label }),
+    el('div', { class: 'value' }, [value, unit ? el('span', { class: 'unit', text: unit }) : null]),
+    note ? el('div', { class: 'note', text: note }) : null]);
+  const big = amt >= 1e8 ? [nf1.format(amt / 1e8), '億元'] : amt >= 1e4 ? [nf1.format(amt / 1e4), '萬元'] : [int(amt), '元'];
+  $('kpis').replaceChildren(
+    tile('銷售金額', big[0], big[1], money(amt), true),
+    tile('銷售數量', int(qty), '件'),
+    tile('日均銷售金額', days.size ? compact(amt / days.size) : '—', days.size ? '元' : '', `共 ${days.size} 天有銷售`),
+    tile('銷售商品數', int(prods.size), '個', '有條碼的跨通路算同一個'),
+    tile('屈臣氏門市數', stores.size ? int(stores.size) : '—', stores.size ? '家' : '', '康是美沒有門市資料'));
+}
+
+// ---------- 趨勢線圖 ----------
+function weekStart(d) {   // 週一為一週開始
+  const t = new Date(d + 'T00:00:00Z'), w = (t.getUTCDay() + 6) % 7;
+  t.setUTCDate(t.getUTCDate() - w);
+  return t.toISOString().slice(0, 10);
+}
+function renderTrend(rows) {
+  const keyOf = state.gran === 'day' ? d => d : state.gran === 'week' ? weekStart : d => d.slice(0, 7);
+  const lo = D.indexOf(state.from), hi = D.indexOf(state.to);
+  const keys = [], kIdx = new Map();
+  for (let i = lo; i <= hi; i++) { const k = keyOf(D[i]); if (!kIdx.has(k)) { kIdx.set(k, keys.length); keys.push(k); } }
+  const chs = activeCh();
+  // 期間內有資料的日子才算值（含 0），否則為 null（斷線）；同時記錄每期天數
+  const vals = chs.map(() => keys.map(() => null)), dayCount = chs.map(() => keys.map(() => 0));
+  chs.forEach((c, si) => { for (let i = lo; i <= hi; i++) if (inView(c, i)) {
+    const k = kIdx.get(keyOf(D[i])); vals[si][k] = vals[si][k] || 0; dayCount[si][k]++; } });
+  for (const f of rows) { const si = chs.indexOf(f[0]); vals[si][kIdx.get(keyOf(D[f[2]]))] += f[5]; }
+  const label = k => state.gran === 'day' ? md(k) : state.gran === 'week' ? md(k) + ' 週' : monthLabel(k);
+  $('trendSub').textContent = { day: '每日銷售金額', week: '每週（週一起算）銷售金額；頭尾的週可能不滿 7 天', month: '每月銷售金額；未滿整月的月份天數較少' }[state.gran];
+  lineChart($('trend'), keys.map(label), chs.map((c, si) => ({ name: CH[c], color: color(c), values: vals[si], days: dayCount[si] })));
+}
+
+function lineChart(box, labels, series) {
+  const W = box.clientWidth || 600, H = 280, m = { l: 56, r: 56, t: 16, b: 28 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, n = labels.length;
+  const all = series.flatMap(s => s.values.filter(v => v != null));
+  if (!n || !all.length) { box.replaceChildren(el('div', { class: 'empty', text: '這個期間沒有資料' })); return; }
+  const ticks = niceTicks(Math.min(0, ...all), Math.max(...all));
+  const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+  const X = i => m.l + (n === 1 ? iw / 2 : i * iw / (n - 1));
+  const Y = v => m.t + ih - (v - y0) / (y1 - y0) * ih;
+  const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': '銷售金額趨勢圖' });
+  for (const t of ticks) {
+    s.append(svg('line', { class: t === 0 ? 'baseline' : 'gridline', x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t) }));
+    s.append(svg('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end' }, compact(t)));
+  }
+  const every = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(iw / 56))));
+  labels.forEach((lb, i) => { if (i % every === 0) s.append(svg('text', { x: X(i), y: H - 8, 'text-anchor': 'middle' }, lb)); });
+  const markers = n <= 20;
+  for (const sr of series) {
+    let d = '', pen = false, last = -1;
+    sr.values.forEach((v, i) => { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + X(i) + ',' + Y(v); pen = true; last = i; });
+    s.append(svg('path', { d, fill: 'none', stroke: sr.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    sr.values.forEach((v, i) => { if (v != null && (markers || i === last))
+      s.append(svg('circle', { cx: X(i), cy: Y(v), r: 4, fill: sr.color, stroke: 'var(--surface)', 'stroke-width': 2 })); });
+    if (last >= 0) {   // 線尾標通路名稱
+      const nearRight = X(last) > W - m.r - 40;
+      s.append(svg('text', { class: 'end-label', x: nearRight ? X(last) : X(last) + 8, y: Y(sr.values[last]) + (nearRight ? -10 : 4),
+        'text-anchor': nearRight ? 'end' : 'start' }, sr.name));
+    }
+  }
+  // 十字線與提示框
+  const cross = svg('line', { class: 'crosshair', y1: m.t, y2: m.t + ih, visibility: 'hidden' });
+  const hit = svg('rect', { class: 'hit', x: m.l - 8, y: m.t, width: iw + 16, height: ih, tabindex: 0 });
+  s.append(cross, hit);
+  const at = i => {
+    cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('visibility', 'visible');
+    return series.map(sr => ({ color: sr.color, label: sr.name + (sr.values[i] != null && state.gran !== 'day' ? `（${sr.days[i]} 天）` : ''),
+      value: sr.values[i] == null ? '無資料' : money(sr.values[i]) }));
+  };
+  let kbd = n - 1;
+  hit.addEventListener('pointermove', e => {
+    const r = s.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(n - 1, Math.round(n === 1 ? 0 : (px - m.l) / iw * (n - 1))));
+    showTip(e, labels[i], at(i));
+  });
+  hit.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') kbd = Math.min(n - 1, kbd + 1); else if (e.key === 'ArrowLeft') kbd = Math.max(0, kbd - 1); else return;
+    e.preventDefault(); const r = s.getBoundingClientRect();
+    showTip({ clientX: r.left + X(kbd) * r.width / W, clientY: r.top + m.t + 20 }, labels[kbd], at(kbd));
+  });
+  const off = () => { cross.setAttribute('visibility', 'hidden'); hideTip(); };
+  hit.addEventListener('pointerleave', off); hit.addEventListener('blur', off);
+  box.replaceChildren(s);
+}
+
+// ---------- 各月日均（直條圖）＋ 月份比較表 ----------
+function monthStats(rows) {
+  const chs = activeCh(), out = [];
+  for (const c of chs) for (const mo of months) {
+    let days = 0;
+    D.forEach((d, i) => { if (d.startsWith(mo) && inView(c, i)) days++; });
+    if (days) out.push({ ch: c, month: mo, days, amt: 0, qty: 0 });
+  }
+  const find = (c, mo) => out.find(o => o.ch === c && o.month === mo);
+  for (const f of rows) { const o = find(f[0], D[f[2]].slice(0, 7)); o.amt += f[5]; o.qty += f[4]; }
+  for (const o of out) o.avg = o.amt / o.days;
+  return out;
+}
+function renderMonthly(stats) {
+  const box = $('monthly');
+  const ms = months.filter(mo => stats.some(o => o.month === mo));
+  if (!ms.length) { box.replaceChildren(el('div', { class: 'empty', text: '這個期間沒有資料' })); return; }
+  const W = box.clientWidth || 400, H = 260, m = { l: 56, r: 8, t: 22, b: 28 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const ticks = niceTicks(0, Math.max(...stats.map(o => o.avg)));
+  const yMax = ticks[ticks.length - 1], Y = v => m.t + ih - v / yMax * ih;
+  const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': '各月日均銷售金額直條圖' });
+  for (const t of ticks) {
+    s.append(svg('line', { class: t === 0 ? 'baseline' : 'gridline', x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t) }));
+    s.append(svg('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end' }, compact(t)));
+  }
+  const band = iw / ms.length;
+  ms.forEach((mo, mi) => {
+    const group = stats.filter(o => o.month === mo), bw = Math.min(24, (band * 0.6 - 2 * (group.length - 1)) / group.length);
+    const gw = group.length * bw + (group.length - 1) * 2, gx = m.l + mi * band + (band - gw) / 2;
+    // 不滿整月的月份在軸上標天數，避免把 2 天的日均當成整月表現
+    const full = new Date(Date.UTC(+mo.slice(0, 4), +mo.slice(5, 7), 0)).getUTCDate();
+    const minDays = Math.min(...group.map(o => o.days));
+    s.append(svg('text', { x: m.l + mi * band + band / 2, y: H - 8, 'text-anchor': 'middle' },
+      monthLabel(mo) + (minDays < full ? `（${minDays} 天）` : '')));
+    group.forEach((o, gi) => {
+      const x = gx + gi * (bw + 2), y = Y(Math.max(0, o.avg)), h = m.t + ih - y, r = Math.min(4, h, bw / 2);
+      const p = svg('path', { class: 'bar', fill: color(o.ch), tabindex: 0,
+        d: `M${x},${m.t + ih}V${y + r}Q${x},${y} ${x + r},${y}H${x + bw - r}Q${x + bw},${y} ${x + bw},${y + r}V${m.t + ih}Z` });
+      const rowsFor = () => [{ color: color(o.ch), value: money(o.avg), label: `${CH[o.ch]} 日均` },
+        { value: money(o.amt), label: `合計（${o.days} 天）` }];
+      p.addEventListener('pointermove', e => showTip(e, `${monthLabel(mo)}・${CH[o.ch]}`, rowsFor()));
+      p.addEventListener('focus', e => showTip(e, `${monthLabel(mo)}・${CH[o.ch]}`, rowsFor()));
+      p.addEventListener('pointerleave', hideTip); p.addEventListener('blur', hideTip);
+      s.append(p);
+      if (bw >= 14 || group.length === 1) s.append(svg('text', { class: 'val', x: x + bw / 2, y: y - 6, 'text-anchor': 'middle' }, compact(o.avg)));
+    });
+  });
+  box.replaceChildren(s);
+}
+function renderMonthTable(stats) {
+  const t = $('monthTable');
+  const head = el('thead', {}, el('tr', {}, ['月份', '通路', '天數', '銷售金額', '銷售數量', '日均金額', '日均較上月'].map((h, i) =>
+    el('th', { class: i >= 2 ? 'n' : '', text: h }))));
+  const body = el('tbody');
+  for (const o of stats) {
+    const prev = stats.find(p => p.ch === o.ch && p.month === months[months.indexOf(o.month) - 1]);
+    const chg = prev && prev.avg ? o.avg / prev.avg - 1 : null;
+    const full = new Date(Date.UTC(+o.month.slice(0, 4), +o.month.slice(5, 7), 0)).getUTCDate();
+    body.append(el('tr', {}, [
+      el('td', { text: monthLabel(o.month) }),
+      el('td', {}, [el('i', { class: 'dot', style: `background:${color(o.ch)}` }), CH[o.ch]]),
+      el('td', { class: 'n' }, [String(o.days), o.days < full ? el('span', { class: 'muted', text: ` / ${full}` }) : null]),
+      el('td', { class: 'n', text: money(o.amt) }),
+      el('td', { class: 'n', text: int(o.qty) }),
+      el('td', { class: 'n', text: money(o.avg) }),
+      el('td', { class: 'n' + (chg == null ? ' muted' : chg >= 0 ? ' up' : ' down'),
+        text: chg == null ? '—' : (chg >= 0 ? '▲ ' : '▼ ') + pct(chg) })]));
+  }
+  if (!stats.length) body.append(el('tr', {}, el('td', { colspan: 7, class: 'muted', text: '這個期間沒有資料' })));
+  t.replaceChildren(head, body);
+}
+
+// ---------- 商品彙總、排行、明細 ----------
+function productStats(rows) {
+  const map = new Map();
+  for (const f of rows) {
+    let o = map.get(f[3]);
+    if (!o) map.set(f[3], o = { p: f[3], amt: 0, qty: 0, byCh: CH.map(() => ({ amt: 0, qty: 0 })) });
+    o.amt += f[5]; o.qty += f[4]; o.byCh[f[0]].amt += f[5]; o.byCh[f[0]].qty += f[4];
+  }
+  return [...map.values()];
+}
+const prodName = i => P[i].name;
+function rankRows(box, items, chs, fmt, metric) {
+  if (!items.length) { box.replaceChildren(el('div', { class: 'empty', style: 'grid-column:1/-1', text: '這個期間沒有資料' })); return; }
+  const max = Math.max(...items.map(it => Math.max(0, it.total)));
+  box.replaceChildren(...items.map((it, i) => {
+    const segs = chs.map(c => ({ c, v: Math.max(0, it.parts[c] ?? 0) })).filter(x => x.v > 0);
+    const track = el('div', { class: 'track' }, segs.map(x => el('div', { class: 'seg-bar',
+      style: `width:calc(${(x.v / max * 100).toFixed(3)}% - ${segs.length > 1 ? 1 : 0}px);background:${color(x.c)}` })));
+    const tipRows = () => [{ value: fmt(it.total), label: '合計' },
+      ...chs.filter(c => it.parts[c] != null).map(c => ({ color: color(c), value: fmt(it.parts[c]), label: CH[c] }))];
+    const row = el('div', { class: 'row hitrow', tabindex: 0 }, [
+      el('div', { class: 'name', title: it.name }, [el('small', { text: String(i + 1) }), it.name]),
+      track, el('div', { class: 'num', text: fmt(it.total) })]);
+    for (const node of row.children) {
+      node.addEventListener('pointermove', e => showTip(e, it.title || it.name, tipRows()));
+      node.addEventListener('pointerleave', hideTip);
+    }
+    row.addEventListener('focusin', e => showTip({ target: track }, it.title || it.name, tipRows()));
+    row.addEventListener('focusout', hideTip);
+    return row;
+  }));
+}
+function renderRank(stats) {
+  const key = state.rankBy, chs = activeCh();
+  const top = [...stats].sort((a, b) => b[key] - a[key]).slice(0, state.rankN);
+  $('rankSub').textContent = `依${key === 'amt' ? '銷售金額' : '銷售數量'}排序，前 ${state.rankN} 名；有條碼的商品會合併兩通路的銷售`;
+  rankRows($('rank'), top.map(o => ({ name: prodName(o.p) + (P[o.p].trial ? '（試用）' : ''), title: prodName(o.p) + (P[o.p].barcode ? `｜${P[o.p].barcode}` : ''),
+    total: o[key], parts: Object.fromEntries(chs.map(c => [c, o.byCh[c][key]])) })), chs, key === 'amt' ? money : v => int(v) + ' 件');
+}
+function renderStores(rows) {
+  const card = $('storeCard');
+  if (state.ch !== 'all' && state.ch !== 0) { card.hidden = true; return; }
+  card.hidden = false;
+  const map = new Map();
+  for (const f of rows) if (f[1] >= 0) {
+    const o = map.get(f[1]) || { amt: 0, qty: 0 }; o.amt += f[5]; o.qty += f[4]; map.set(f[1], o);
+  }
+  const top = [...map.entries()].sort((a, b) => b[1].amt - a[1].amt).slice(0, 15);
+  rankRows($('stores'), top.map(([s, o]) => ({ name: '門市 ' + DATA.stores[s], total: o.amt, parts: { 0: o.amt },
+    title: `門市 ${DATA.stores[s]}｜${int(o.qty)} 件` })), [0], money);
+}
+function renderProdTable(stats) {
+  const chs = activeCh();
+  const cols = [
+    { key: 'name', label: '品名', get: o => prodName(o.p) },
+    { key: 'barcode', label: '條碼', get: o => P[o.p].barcode },
+    ...(chs.length > 1 ? chs.map(c => ({ key: 'ch' + c, label: CH[c] + '金額', n: true, get: o => o.byCh[c].amt, fmt: money })) : []),
+    { key: 'amt', label: '銷售金額', n: true, get: o => o.amt, fmt: money },
+    { key: 'qty', label: '銷售數量', n: true, get: o => o.qty, fmt: int },
+    { key: 'price', label: '平均單價', n: true, get: o => o.qty > 0 ? o.amt / o.qty : null, fmt: money },
+  ];
+  const sc = cols.find(c => c.key === state.sort.key) || cols.find(c => c.key === 'amt');
+  const sorted = [...stats].sort((a, b) => {
+    const x = sc.get(a), y = sc.get(b);
+    if (x == null || x === '') return 1; if (y == null || y === '') return -1;
+    return (typeof x === 'string' ? x.localeCompare(y, 'zh-Hant') : x - y) * state.sort.dir;
+  });
+  const head = el('thead', {}, el('tr', {}, cols.map(c => el('th', { class: c.n ? 'n' : '',
+    'aria-sort': c === sc ? (state.sort.dir > 0 ? 'ascending' : 'descending') : 'none' },
+    el('button', { type: 'button', text: c.label + (c === sc ? (state.sort.dir > 0 ? ' ▲' : ' ▼') : ''),
+      onclick: () => { state.sort = { key: c.key, dir: c === sc ? -state.sort.dir : (c.n ? -1 : 1) }; renderProdTable(stats); } })))));
+  const body = el('tbody', {}, sorted.map(o => el('tr', {}, cols.map(c => {
+    if (c.key === 'name') return el('td', { class: 'name' }, [prodName(o.p), P[o.p].trial ? el('span', { class: 'tag', text: '試用' }) : null]);
+    if (c.key === 'barcode') return el('td', { class: P[o.p].barcode ? '' : 'muted',
+      text: P[o.p].barcode || `待補（康是美 ${P[o.p].codes['康是美'] || ''}）` });
+    const v = c.get(o);
+    return el('td', { class: 'n' + (v ? '' : ' muted'), text: v == null ? '—' : c.fmt(v) });
+  }))));
+  $('prodTable').replaceChildren(head, body);
+}
+
+// ---------- 整體 ----------
+function render() {
+  hideTip();
+  renderControls();
+  const rows = filtered();
+  renderKpis(rows);
+  renderTrend(rows);
+  const ms = monthStats(rows);
+  renderMonthly(ms); renderMonthTable(ms);
+  const ps = productStats(rows);
+  renderRank(ps); renderStores(rows); renderProdTable(ps);
+}
+
+(function init() {
+  const ranges = CH.map((c, i) => chRange[i][1] >= 0 ? `${c} ${D[chRange[i][0]]}～${D[chRange[i][1]]}` : null).filter(Boolean);
+  $('meta').textContent = `資料期間：${ranges.join('；')}　｜　產生時間：${DATA.generated}`;
+  const notice = $('notice');
+  notice.append(el('strong', { text: '注意：' }), '兩個通路的資料期間沒有重疊，請用日均金額比較通路，不要直接比合計。');
+  for (const x of DATA.excluded) notice.append(`已排除 ${x.channel} ${x.date}（${x.reason}）。`);
+  const pending = P.filter(p => !p.barcode).length;
+  if (pending) notice.append(`康是美有 ${pending} 個商品還沒有條碼，暫時無法和屈臣氏合併計算。`);
+  render();
+  let raf = 0, lastW = innerWidth;
+  addEventListener('resize', () => { if (innerWidth === lastW) return; lastW = innerWidth;
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(render); });
+})();
+</script>
+</body>
+</html>

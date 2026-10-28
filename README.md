@@ -28,15 +28,25 @@
 - 產品／品項銷售排行
 - 期間比較（例如月增率、年增率）
 
-## 資料夾結構（規劃中）
+## 使用方式
+
+1. 把各通路的 Excel 放進 `data/raw`。
+2. 執行 `python scripts\clean_sellout.py`（第一次使用先執行 `python -m pip install -r requirements.txt`）。
+3. 雙擊 `dashboard/sellout_dashboard.html`，用瀏覽器開啟 Dashboard。
+
+## 資料夾結構
 
 ```
 sellout/
 ├── data/
 │   ├── raw/          # 各通路原始 Excel
 │   └── processed/    # 整理後的統一資料
-├── scripts/          # 資料清理與合併程式
-├── dashboard/        # Dashboard 相關檔案
+├── scripts/
+│   ├── clean_sellout.py     # 資料清理與合併
+│   └── build_dashboard.py   # 產生 Dashboard
+├── dashboard/
+│   ├── template.html            # Dashboard 樣板
+│   └── sellout_dashboard.html   # 產生出來的 Dashboard（含資料，不放進 Git）
 └── README.md
 ```
 

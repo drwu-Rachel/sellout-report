@@ -259,6 +259,10 @@ def main():
     write_csv(out_path, COLUMNS, rows)
     print_summary(rows, out_path, mapping, map_path)
 
+    # 順便更新 Dashboard
+    import build_dashboard
+    build_dashboard.build(out_path, ROOT / 'dashboard' / 'template.html', ROOT / 'dashboard' / 'sellout_dashboard.html')
+
 
 if __name__ == '__main__':
     sys.stdout.reconfigure(encoding='utf-8')

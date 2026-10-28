@@ -12,7 +12,19 @@
 - `data\processed`：整理結果，由程式產生。
   - `sellout_daily.csv`：每日銷售明細（各通路合併）
   - `康是美品號對照.csv`：康是美品號 → 國際條碼對照表（可手動編輯）
-- `scripts\clean_sellout.py`：整理程式（Python）
+- `scripts\clean_sellout.py`：整理程式（Python），跑完會自動更新 Dashboard
+- `scripts\build_dashboard.py`：用 `sellout_daily.csv` 產生 Dashboard（也可單獨執行）
+- `dashboard\template.html`：Dashboard 樣板，要改畫面就改這個檔
+- `dashboard\sellout_dashboard.html`：產生出來的 Dashboard，雙擊用瀏覽器開啟；內含銷售資料，不放進 Git、不要上傳或分享到外部
+
+## Dashboard
+
+- 單一 HTML 檔，資料包在檔案裡，圖表用 SVG 自己畫，不需要網路、不用外部套件。
+- 康是美的最後一天（報表「資料最新日期」）在產生 Dashboard 時自動排除，`sellout_daily.csv` 仍保留。
+- 兩通路資料期間沒有重疊（屈臣氏 5～6 月、康是美 7～8 月），通路比較用「日均銷售金額」；沒有去年資料，所以沒有年增率。
+- 有條碼的商品會合併兩通路計算；康是美沒條碼的品號單獨列出，補上對照表後重跑即可合併。
+- 「排除試用品、體驗包」是畫面上的勾選項，預設不排除。
+- 顏色：屈臣氏藍、康是美橘（已用色盲檢查工具驗證）。新增通路時依序加色，不要重排既有通路的顏色。
 
 ## 更新資料
 
@@ -27,6 +39,7 @@ python scripts\clean_sellout.py
 - `data\raw` 每個通路只能有一個檔案，程式用檔名比對：屈臣氏 `*明細*.xls*`、康是美 `康是美*.xls*`。
 - 如果報表欄位和預期不同，程式會停下來並列出差異。
 - `sellout_daily.csv` 如果被其他程式開著，就無法寫入，要先關掉。
+- 跑完後打開 `dashboard\sellout_dashboard.html` 看結果（已開著的話重新整理）。
 - 輸出的 CSV 是 UTF-8 BOM、每個欄位加引號，用 Excel 開啟中文才不會亂碼。
 - 銷售金額用 `Decimal` 四捨五入（不要改回內建 `round()`，它會把 1227.135 捨成 1227.13）。
 
