@@ -31,7 +31,7 @@
 
 ## Streamlit app（app.py）
 
-啟動：`python -m streamlit run app.py`，瀏覽器開 http://localhost:8501
+啟動：雙擊 `start_dashboard.bat`（已在執行就只開瀏覽器；關掉黑色視窗即停止），或 `python -m streamlit run app.py`，瀏覽器開 http://localhost:8501
 
 - 上傳多個 Excel（或按鈕改用 `data\raw` 的檔案，網址加 `?source=raw`），自動辨識通路並整理；問題列分「已排除」「需留意」（規則見 `docs\format.md` 第 9 節）。
 - 只讀不寫：不會修改 `data` 裡的任何檔案；康是美對照表只讀取套用，新品號只在記憶體中自動配對。
