@@ -1,2 +1,4 @@
 xlrd>=2.0
 openpyxl>=3.1
+# Streamlit 網頁（app.py）；pandas、altair 會一起安裝
+streamlit>=1.40

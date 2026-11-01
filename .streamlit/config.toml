@@ -1,0 +1,13 @@
+# Streamlit 設定（app.py）
+
+[server]
+# 只允許這台電腦開啟；頁面含銷售資料，不開放給同網路的其他電腦
+address = "localhost"
+port = 8501
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+# 預設紅色會讓選取的標籤看起來像警告，改成藍色
+primaryColor = "#2a78d6"

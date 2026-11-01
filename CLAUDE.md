@@ -13,8 +13,10 @@
   - `sellout_daily.csv`：每日銷售明細（各通路合併）
   - `康是美品號對照.csv`：康是美品號 → 國際條碼對照表（可手動編輯）
 - `docs\format.md`：統一格式、各通路欄位對應與處理規則的完整說明（改了整理程式要一併更新）
-- `scripts\clean_sellout.py`：整理程式（Python），跑完會自動更新 Dashboard
+- `scripts\clean_sellout.py`：整理程式（Python），跑完會自動更新 Dashboard。整理邏輯拆成函式，`clean_files([(檔名, bytes)], 對照表)` 回傳整理結果與問題列、不寫檔，命令列和 `app.py` 共用
 - `scripts\build_dashboard.py`：用 `sellout_daily.csv` 產生 Dashboard（也可單獨執行）
+- `app.py`：Streamlit 網頁，上傳 Excel → 整理 → 篩選、指標、圖表 → 下載 Excel
+- `.streamlit\config.toml`：Streamlit 設定（只允許本機開啟、主色藍色）
 - `dashboard\template.html`：Dashboard 樣板，要改畫面就改這個檔
 - `dashboard\sellout_dashboard.html`：產生出來的 Dashboard，雙擊用瀏覽器開啟；內含銷售資料，不放進 Git、不要上傳或分享到外部
 
@@ -27,6 +29,17 @@
 - 「排除試用品、體驗包」是畫面上的勾選項，預設不排除。
 - 顏色：屈臣氏藍、康是美橘（已用色盲檢查工具驗證）。新增通路時依序加色，不要重排既有通路的顏色。
 
+## Streamlit app（app.py）
+
+啟動：`python -m streamlit run app.py`，瀏覽器開 http://localhost:8501
+
+- 上傳多個 Excel（或按鈕改用 `data\raw` 的檔案，網址加 `?source=raw`），自動辨識通路並整理；問題列分「已排除」「需留意」（規則見 `docs\format.md` 第 9 節）。
+- 只讀不寫：不會修改 `data` 裡的任何檔案；康是美對照表只讀取套用，新品號只在記憶體中自動配對。
+- 下載的 Excel 在按下按鈕時才產生（5 萬筆約 8 秒）。
+- 「與上月比較」：最新月份 vs 完整的上個月；同時顯示合計與日均，月份不滿或跨通路時會顯示提醒。
+- 只綁定 localhost，因為頁面含銷售資料。
+- 測試可用 `streamlit.testing.v1.AppTest`（設 `at.query_params['source']='raw'`）。
+
 ## 更新資料
 
 把新的 Excel 放進 `data\raw`，再執行：
@@ -37,8 +50,8 @@ python scripts\clean_sellout.py
 
 - 用 Python 3.13 執行（`python` 或 `py`；`python3` 是 Windows 內建捷徑，不能用）。
 - 讀檔用 `xlrd`（.xls）和 `openpyxl`（.xlsx），不需要 Excel。換電腦時先執行 `python -m pip install -r requirements.txt`。
-- `data\raw` 每個通路只能有一個檔案，程式用檔名比對：屈臣氏 `*明細*.xls*`、康是美 `康是美*.xls*`。
-- 如果報表欄位和預期不同，程式會停下來並列出差異。
+- `data\raw` 每個通路只能有一個檔案，程式用檔名比對：屈臣氏 `*明細*.xls*`、康是美 `康是美*.xls*`。`~$` 開頭的 Excel 暫存檔會略過。
+- 如果報表欄位和預期不同，程式會停下來並列出差異；個別列的問題（如日期格式錯誤）不會停下，記為問題列並印出摘要。
 - `sellout_daily.csv` 如果被其他程式開著，就無法寫入，要先關掉。
 - 跑完後打開 `dashboard\sellout_dashboard.html` 看結果（已開著的話重新整理）。
 - 輸出的 CSV 是 UTF-8 BOM、每個欄位加引號，用 Excel 開啟中文才不會亂碼。

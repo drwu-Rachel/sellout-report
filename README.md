@@ -34,6 +34,14 @@
 2. 執行 `python scripts\clean_sellout.py`（第一次使用先執行 `python -m pip install -r requirements.txt`）。
 3. 雙擊 `dashboard/sellout_dashboard.html`，用瀏覽器開啟 Dashboard。
 
+或使用網頁版（可直接上傳 Excel、下載整理後的 Excel）：
+
+```
+python -m streamlit run app.py
+```
+
+瀏覽器會開啟 http://localhost:8501。
+
 ## 資料夾結構
 
 ```
@@ -47,6 +55,8 @@ sellout/
 ├── dashboard/
 │   ├── template.html            # Dashboard 樣板
 │   └── sellout_dashboard.html   # 產生出來的 Dashboard（含資料，不放進 Git）
+├── docs/format.md    # 統一格式與處理規則
+├── app.py            # Streamlit 網頁版
 └── README.md
 ```
 
