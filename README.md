@@ -55,7 +55,8 @@ sellout/
 ├── dashboard/
 │   ├── template.html            # Dashboard 樣板
 │   └── sellout_dashboard.html   # 產生出來的 Dashboard（含資料，不放進 Git）
-├── docs/format.md    # 統一格式與處理規則
+├── notes/format.md   # 統一格式與處理規則
+├── docs/             # 網站（只放網頁和加密後的資料檔）
 ├── app.py            # Streamlit 網頁版
 └── README.md
 ```

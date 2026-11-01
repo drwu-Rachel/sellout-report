@@ -20,7 +20,8 @@
 - `data\processed`：整理結果，由程式產生。
   - `sellout_daily.csv`：每日銷售明細（各通路合併）
   - `康是美品號對照.csv`：康是美品號 → 國際條碼對照表（可手動編輯）
-- `docs\format.md`：統一格式、各通路欄位對應與處理規則的完整說明（改了整理程式要一併更新）
+- `notes\format.md`：統一格式、各通路欄位對應與處理規則的完整說明（改了整理程式要一併更新）。說明文件一律放 `notes`
+- `docs`：網站專用，**只能放網頁和加密後的資料檔**。不可放說明文件、未加密的資料（Excel、CSV、含銷售數字的 HTML 等）；要放其他檔案前先停下來問使用者
 - `scripts\clean_sellout.py`：整理程式（Python），跑完會自動更新 Dashboard。整理邏輯拆成函式，`clean_files([(檔名, bytes)], 對照表)` 回傳整理結果與問題列、不寫檔，命令列和 `app.py` 共用
 - `scripts\build_dashboard.py`：用 `sellout_daily.csv` 產生 Dashboard（也可單獨執行）
 - `scripts\weekly_report.py`：用 `sellout_daily.csv` 計算各通路本週 vs 上週，產生 `output\週報_<本週最後一天>.md`；搭配 `.claude\skills\weekly-report` skill，由 Claude 填入 3 句重點結論
@@ -43,7 +44,7 @@
 
 啟動：雙擊 `start_dashboard.bat`（已在執行就只開瀏覽器；關掉黑色視窗即停止），或 `python -m streamlit run app.py`，瀏覽器開 http://localhost:8501
 
-- 上傳多個 Excel（或按鈕改用 `data\raw` 的檔案，網址加 `?source=raw`），自動辨識通路並整理；問題列分「已排除」「需留意」（規則見 `docs\format.md` 第 9 節）。
+- 上傳多個 Excel（或按鈕改用 `data\raw` 的檔案，網址加 `?source=raw`），自動辨識通路並整理；問題列分「已排除」「需留意」（規則見 `notes\format.md` 第 9 節）。
 - 只讀不寫：不會修改 `data` 裡的任何檔案；康是美對照表只讀取套用，新品號只在記憶體中自動配對。
 - 下載的 Excel 在按下按鈕時才產生（5 萬筆約 8 秒）。
 - 「與上月比較」：最新月份 vs 完整的上個月；同時顯示合計與日均，月份不滿或跨通路時會顯示提醒。
