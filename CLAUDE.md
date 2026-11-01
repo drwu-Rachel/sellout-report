@@ -22,6 +22,7 @@
   - `康是美品號對照.csv`：康是美品號 → 國際條碼對照表（可手動編輯）
 - `notes\format.md`：統一格式、各通路欄位對應與處理規則的完整說明（改了整理程式要一併更新）。說明文件一律放 `notes`
 - `docs`：網站專用，**只能放網頁和加密後的資料檔**。不可放說明文件、未加密的資料（Excel、CSV、含銷售數字的 HTML 等）；要放其他檔案前先停下來問使用者
+  - `docs\index.html`：網頁版 Dashboard（單一檔案，Chart.js 從 CDN 載入）。用「選擇檔案」讀 `sellout_daily.csv`，只在瀏覽器裡讀取，頁面本身不含資料。計算規則同 `app.py`（康是美最後一天預設排除、與前一期比較的前一期不受月份篩選影響）。時間單位可切換日／週／月，影響趨勢圖和比較卡片；一週＝週一到週日（同週報）
 - `scripts\clean_sellout.py`：整理程式（Python），跑完會自動更新 Dashboard。整理邏輯拆成函式，`clean_files([(檔名, bytes)], 對照表)` 回傳整理結果與問題列、不寫檔，命令列和 `app.py` 共用
 - `scripts\build_dashboard.py`：用 `sellout_daily.csv` 產生 Dashboard（也可單獨執行）
 - `scripts\weekly_report.py`：用 `sellout_daily.csv` 計算各通路本週 vs 上週，產生 `output\週報_<本週最後一天>.md`；搭配 `.claude\skills\weekly-report` skill，由 Claude 填入 3 句重點結論

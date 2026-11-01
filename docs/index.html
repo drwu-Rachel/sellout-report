@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sellout 銷售分析</title>
+<!-- 此頁面不含任何銷售資料：資料由使用者在瀏覽器裡選擇檔案讀取，不會上傳到任何地方 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: #e3e5e8;
+    --text: #1f2328;
+    --text-2: #57606a;
+    --muted: #8b949e;
+    --grid: #eceef1;
+    --accent: #2a78d6;
+    --good: #1a7f37;
+    --bad: #cf222e;
+    --warn-bg: #fff8e5;
+    --warn-text: #7a5a00;
+    --err-bg: #ffebe9;
+    --font: system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;
+      --surface: #181c22;
+      --border: #2d333b;
+      --text: #e6edf3;
+      --text-2: #a8b1bb;
+      --muted: #768390;
+      --grid: #262c34;
+      --accent: #5a9ae6;
+      --good: #4ac26b;
+      --bad: #ff7b72;
+      --warn-bg: #2e2610;
+      --warn-text: #e3c46c;
+      --err-bg: #3a1d1f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: var(--text-2); margin: 0 0 16px; font-size: 14px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .caption { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+
+  /* 選擇檔案 */
+  .loader { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .btn { display: inline-block; background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn:focus-visible, .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #fileInput { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  #fileName { color: var(--text-2); font-size: 14px; word-break: break-all; }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+  .msg.err { background: var(--err-bg); }
+  .msg.warn { background: var(--warn-bg); color: var(--warn-text); }
+
+  /* 篩選 */
+  .filters { display: flex; flex-wrap: wrap; gap: 14px 28px; margin-top: 16px; }
+  .filter-group { min-width: 0; }
+  .filter-label { font-size: 13px; color: var(--text-2); margin-bottom: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { position: relative; cursor: pointer; }
+  .chip input { position: absolute; opacity: 0; }
+  .chip span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 14px; background: var(--surface); color: var(--text-2); }
+  .chip input:checked + span { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; }
+  .partial { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 14px; color: var(--text-2); }
+  .partial input { margin-top: 4px; }
+
+  /* 指標卡 */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+  .kpi .label { font-size: 13px; color: var(--text-2); }
+  .kpi .value { font-size: 26px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi .delta { font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .delta.up { color: var(--good); }
+  .delta.down { color: var(--bad); }
+  .delta.flat { color: var(--muted); }
+  .kpi .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #notes { margin-top: 10px; }
+
+  /* 圖表 */
+  .metric-row { display: flex; align-items: center; gap: 10px; margin: 24px 0 12px; }
+  .grid2 { display: grid; grid-template-columns: 2fr 3fr; gap: 12px; margin-top: 12px; align-items: start; }
+  .chart-box { position: relative; width: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-2); margin-bottom: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  details { margin-top: 10px; font-size: 14px; }
+  summary { cursor: pointer; color: var(--text-2); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 900px) {
+    .grid2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    h1 { font-size: 21px; }
+    .kpi .value { font-size: 21px; }
+    .card { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sellout 銷售分析</h1>
+  <p class="sub">讀取整理後的 <code>sellout_daily.csv</code>。檔案只在你的瀏覽器裡讀取，不會上傳到任何地方。</p>
+
+  <section class="card">
+    <div class="loader">
+      <label class="btn" for="fileInput" tabindex="0" id="fileBtn">選擇檔案</label>
+      <input type="file" id="fileInput" accept=".csv,text/csv">
+      <span id="fileName">請選擇 data\processed\sellout_daily.csv</span>
+    </div>
+    <div id="loadMsg" hidden></div>
+
+    <div id="filterArea" hidden>
+      <div class="filters">
+        <div class="filter-group">
+          <div class="filter-label">通路</div>
+          <div class="chips" id="channelChips"></div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">月份</div>
+          <div class="chips" id="monthChips"></div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">時間單位</div>
+          <div class="chips">
+            <label class="chip"><input type="radio" name="unit" value="day"><span>日</span></label>
+            <label class="chip"><input type="radio" name="unit" value="week"><span>週</span></label>
+            <label class="chip"><input type="radio" name="unit" value="month" checked><span>月</span></label>
+          </div>
+        </div>
+      </div>
+      <label class="partial" id="partialRow" hidden>
+        <input type="checkbox" id="dropPartial" checked>
+        <span id="partialText"></span>
+      </label>
+    </div>
+  </section>
+
+  <div id="dash" hidden>
+    <div id="emptyMsg" class="msg warn" hidden>這個篩選條件沒有資料。</div>
+    <div id="dashBody">
+      <section class="kpis">
+        <div class="card kpi"><div class="label">總銷量</div><div class="value" id="kQty"></div><div class="hint">篩選期間合計</div></div>
+        <div class="card kpi"><div class="label">總金額</div><div class="value" id="kAmt"></div><div class="hint">篩選期間合計</div></div>
+        <div class="card kpi"><div class="label" id="kCmpLabel"></div><div class="value" id="kCmp"></div><div class="delta" id="kCmpDelta"></div><div class="hint" id="kCmpHint"></div></div>
+        <div class="card kpi" id="kAvgCard"><div class="label" id="kAvgLabel"></div><div class="value" id="kAvg"></div><div class="delta" id="kAvgDelta"></div><div class="hint">每天平均，不受天數多寡影響，比較較公平</div></div>
+      </section>
+      <div id="notes" class="msg warn" hidden></div>
+
+      <div class="metric-row">
+        <span class="filter-label" style="margin:0">圖表指標</span>
+        <div class="chips" id="metricChips">
+          <label class="chip"><input type="radio" name="metric" value="amt" checked><span>銷售金額</span></label>
+          <label class="chip"><input type="radio" name="metric" value="qty"><span>銷售數量</span></label>
+        </div>
+      </div>
+
+      <section class="card">
+        <h2 id="trendTitle">月銷售趨勢</h2>
+        <p class="caption" id="trendCaption"></p>
+        <div class="legend" id="trendLegend"></div>
+        <div class="chart-box" style="height:300px"><canvas id="trendChart" aria-label="銷售趨勢折線圖"></canvas></div>
+      </section>
+
+      <div class="grid2">
+        <section class="card">
+          <h2>通路排行</h2>
+          <p class="caption">篩選期間合計。各通路的資料期間可能不同。</p>
+          <div class="chart-box" id="channelBox"><canvas id="channelChart" aria-label="通路排行長條圖"></canvas></div>
+        </section>
+        <section class="card">
+          <h2>熱銷品項前 10 名</h2>
+          <p class="caption">有條碼的品項會合併兩個通路，顏色區分各通路的貢獻。</p>
+          <div class="legend" id="topLegend"></div>
+          <div class="chart-box" id="topBox"><canvas id="topChart" aria-label="熱銷品項前 10 名長條圖"></canvas></div>
+          <details>
+            <summary>以表格檢視</summary>
+            <div class="table-wrap"><table id="topTable"></table></div>
+          </details>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+// ------------------------------------------------------------ 設定
+const COLUMNS = ['通路', '門市', '日期', '條碼', '通路品號', '品名', '通路分類', '銷售數量', '銷售金額'];
+// 已通過色盲檢查；新增通路時依序加色，不要重排既有通路的顏色
+const CHANNEL_COLORS = { '屈臣氏': '#2a78d6', '康是美': '#eb6834' };
+const OTHER_COLOR = '#898781';
+// 報表最後一天（資料最新日期）只有部分資料的通路
+const PARTIAL_CHANNELS = ['康是美'];
+
+const state = { records: [], channels: [], months: [], partial: [], metric: 'amt', unit: 'month' };
+const charts = {};
+const $ = id => document.getElementById(id);
+
+// ------------------------------------------------------------ 讀檔
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false;
+      } else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c !== '\r') field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function toRecords(rows) {
+  const header = (rows[0] || []).map(h => h.replace(/^﻿/, '').trim());
+  const missing = COLUMNS.filter(c => !header.includes(c));
+  if (missing.length) throw new Error('這個檔案缺少欄位：' + missing.join('、') + '。請選擇 sellout_daily.csv。');
+  const idx = Object.fromEntries(COLUMNS.map(c => [c, header.indexOf(c)]));
+  const records = [], firstName = new Map(), mondays = new Map();
+  let skipped = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (row.length === 1 && row[0] === '') continue;           // 空白列
+    const date = row[idx['日期']];
+    const qty = Number(row[idx['銷售數量']]), amt = Number(row[idx['銷售金額']]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isFinite(qty) || !isFinite(amt)) { skipped++; continue; }
+    const ch = row[idx['通路']], code = row[idx['條碼']], id = row[idx['通路品號']];
+    // 品項：有條碼的跨通路視為同一商品；沒有條碼的用「通路＋品號」
+    const key = code ? code : ch + ':' + id;
+    if (!firstName.has(key)) firstName.set(key, row[idx['品名']] || '（無品名）');
+    if (!mondays.has(date)) mondays.set(date, mondayOf(date));
+    records.push({ ch, date, week: mondays.get(date), month: date.slice(0, 7), key, code, id, qty, amt });
+  }
+  for (const rec of records) {
+    rec.name = firstName.get(rec.key) + (rec.code ? '' : `（${rec.ch} 品號 ${rec.id}，無條碼）`);
+  }
+  return { records, skipped };
+}
+
+$('fileBtn').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('fileInput').click(); }
+});
+
+$('fileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $('fileName').textContent = file.name;
+  const msg = $('loadMsg');
+  msg.hidden = true;
+  try {
+    const { records, skipped } = toRecords(parseCSV(await file.text()));
+    if (!records.length) throw new Error('檔案裡沒有可以分析的資料。');
+    setup(records);
+    if (skipped) showMsg(msg, 'warn', `有 ${skipped.toLocaleString()} 列日期或數字格式不正確，已略過。`);
+  } catch (err) {
+    $('filterArea').hidden = true;
+    $('dash').hidden = true;
+    showMsg(msg, 'err', err.message);
+  }
+});
+
+function showMsg(el, kind, text) {
+  el.className = 'msg ' + kind;
+  el.textContent = text;
+  el.hidden = false;
+}
+
+// ------------------------------------------------------------ 篩選
+function channelColor(ch) { return CHANNEL_COLORS[ch] || OTHER_COLOR; }
+
+function setup(records) {
+  state.records = records;
+  const chSet = new Set(records.map(r => r.ch));
+  state.channels = Object.keys(CHANNEL_COLORS).filter(c => chSet.has(c))
+    .concat([...chSet].filter(c => !(c in CHANNEL_COLORS)).sort());
+  state.months = [...new Set(records.map(r => r.month))].sort();
+
+  // 各通路的最後一天（資料不完整）
+  state.partial = PARTIAL_CHANNELS.filter(c => chSet.has(c)).map(c => ({
+    ch: c, date: records.reduce((m, r) => (r.ch === c && r.date > m ? r.date : m), '')
+  }));
+
+  $('channelChips').replaceChildren(...state.channels.map(c => chip('channel', c, c, channelColor(c))));
+  $('monthChips').replaceChildren(...state.months.map(m => chip('month', m, monthLabel(m))));
+  $('partialRow').hidden = !state.partial.length;
+  $('partialText').textContent = '排除報表資料最新日期（當天資料不完整）：' +
+    state.partial.map(p => `${p.ch} ${p.date}`).join('、');
+
+  $('filterArea').hidden = false;
+  $('dash').hidden = false;
+  render();
+}
+
+function chip(group, value, text, color) {
+  const label = document.createElement('label');
+  label.className = 'chip';
+  const input = document.createElement('input');
+  input.type = 'checkbox'; input.name = group; input.value = value; input.checked = true;
+  input.addEventListener('change', render);
+  const span = document.createElement('span');
+  if (color) {
+    const sw = document.createElement('i');
+    sw.className = 'swatch'; sw.style.background = color;
+    span.append(sw);
+  }
+  span.append(text);
+  label.append(input, span);
+  return label;
+}
+
+function checked(group) {
+  return new Set([...document.querySelectorAll(`input[name="${group}"]:checked`)].map(i => i.value));
+}
+
+document.querySelectorAll('input[name="metric"]').forEach(i => i.addEventListener('change', () => {
+  state.metric = i.value; render();
+}));
+document.querySelectorAll('input[name="unit"]').forEach(i => i.addEventListener('change', () => {
+  state.unit = i.value; render();
+}));
+$('dropPartial').addEventListener('change', render);
+
+// ------------------------------------------------------------ 計算
+const monthLabel = m => `${Number(m.slice(0, 4))} 年 ${Number(m.slice(5))} 月`;
+const shortMonth = m => `${Number(m.slice(5))} 月`;
+const fmtInt = v => Math.round(v).toLocaleString('zh-TW');
+const money = v => 'NT$' + fmtInt(v);
+const fmtMetric = v => state.metric === 'amt' ? money(v) : fmtInt(v) + ' 件';
+const wan = v => Math.abs(v) >= 10000
+  ? (v / 10000).toLocaleString('zh-TW', { maximumFractionDigits: 1 }) + '萬'
+  : v.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+
+// ---- 時間單位：日（yyyy-MM-dd）、週（該週週一的日期，一週＝週一到週日，同週報）、月（yyyy-MM）
+const WEEKDAYS = '日一二三四五六';
+const utc = d => new Date(d + 'T00:00:00Z');
+const iso = dt => dt.toISOString().slice(0, 10);
+function addDays(d, n) { const dt = utc(d); dt.setUTCDate(dt.getUTCDate() + n); return iso(dt); }
+function mondayOf(d) { return addDays(d, -((utc(d).getUTCDay() + 6) % 7)); }
+const md = d => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
+
+function prevMonth(m) {
+  let y = Number(m.slice(0, 4)), mo = Number(m.slice(5)) - 1;
+  if (mo === 0) { y--; mo = 12; }
+  return `${y}-${String(mo).padStart(2, '0')}`;
+}
+function nextMonth(m) {
+  let y = Number(m.slice(0, 4)), mo = Number(m.slice(5)) + 1;
+  if (mo === 13) { y++; mo = 1; }
+  return `${y}-${String(mo).padStart(2, '0')}`;
+}
+function daysInMonth(m) { return new Date(Number(m.slice(0, 4)), Number(m.slice(5)), 0).getDate(); }
+
+const UNITS = {
+  day: {
+    name: '日', field: 'date', prev: k => addDays(k, -1), length: () => 1,
+    axis: md, full: k => `${k}（${WEEKDAYS[utc(k).getUTCDay()]}）`,
+    cur: '最新一天', prevName: '前一天', prevShort: '前一天'
+  },
+  week: {
+    name: '週', field: 'week', prev: k => addDays(k, -7), length: () => 7,
+    axis: k => md(k), full: k => `${k}～${addDays(k, 6)}`,
+    cur: '最新一週', prevName: '上週', prevShort: '上週'
+  },
+  month: {
+    name: '月', field: 'month', prev: prevMonth, length: daysInMonth,
+    axis: monthLabel, full: monthLabel,
+    cur: '最新月份', prevName: '上月', prevShort: null   // 月份直接寫「7 月」
+  }
+};
+const periodShort = (unit, k) => unit === 'day' ? md(k) : unit === 'week' ? `${md(k)}～${md(addDays(k, 6))}` : shortMonth(k);
+
+function periodStats(rows, field, key) {
+  let qty = 0, amt = 0;
+  const days = new Set(), chs = new Set();
+  for (const r of rows) {
+    if (r[field] !== key) continue;
+    qty += r.qty; amt += r.amt; days.add(r.date); chs.add(r.ch);
+  }
+  return { qty, amt, days: days.size, avg: days.size ? amt / days.size : 0, channels: [...chs].sort() };
+}
+
+function pctChange(cur, prev) { return prev ? (cur / prev - 1) * 100 : null; }
+
+// ------------------------------------------------------------ 畫面
+function render() {
+  const chs = checked('channel'), months = checked('month');
+  const drop = $('dropPartial').checked ? state.partial : [];
+  // base：只套用通路與排除最後一天；上月比較用它取完整上月
+  const base = state.records.filter(r => chs.has(r.ch) && !drop.some(p => p.ch === r.ch && p.date === r.date));
+  const df = base.filter(r => months.has(r.month));
+
+  const empty = !df.length;
+  $('emptyMsg').hidden = !empty;
+  $('dashBody').hidden = empty;
+  if (empty) return;
+
+  renderKpis(base, df);
+  const css = getComputedStyle(document.documentElement);
+  const theme = { text: css.getPropertyValue('--text-2').trim(), grid: css.getPropertyValue('--grid').trim(),
+                  surface: css.getPropertyValue('--surface').trim(), font: css.getPropertyValue('--font').trim() };
+  Chart.defaults.font.family = theme.font;
+  Chart.defaults.color = theme.text;
+  const activeChannels = state.channels.filter(c => chs.has(c));
+  renderTrend(df, activeChannels, theme);
+  renderChannels(df, activeChannels, theme);
+  renderTop(df, activeChannels, theme);
+}
+
+function renderKpis(base, df) {
+  let qty = 0, amt = 0;
+  for (const r of df) { qty += r.qty; amt += r.amt; }
+  $('kQty').textContent = fmtInt(qty) + ' 件';
+  $('kAmt').textContent = money(amt);
+
+  // 最新一期（受篩選影響）vs 前一期（取 base，不受月份篩選影響，才是完整的前一期）
+  const unit = state.unit, U = UNITS[unit], field = U.field;
+  const latest = df.reduce((m, r) => (r[field] > m ? r[field] : m), '');
+  const prev = U.prev(latest);
+  const cur = periodStats(df, field, latest), pre = periodStats(base, field, prev);
+  const lc = periodShort(unit, latest), lp = periodShort(unit, prev);
+  const vs = U.prevShort || lp;      // 增減旁的「vs 上週」「vs 7 月」
+  const sep = unit === 'month' ? '' : ' ';
+
+  $('kCmpLabel').textContent = `${lc}${sep}銷售金額（與${U.prevName}比較）`;
+  $('kCmp').textContent = money(cur.amt);
+  setDelta($('kCmpDelta'), pctChange(cur.amt, pre.amt), vs);
+  $('kCmpHint').textContent = unit === 'day'
+    ? `${U.full(latest)} vs ${U.full(prev)}`
+    : `${lc} ${cur.days} 天 vs ${lp} ${pre.days} 天的合計金額`;
+  // 以日為單位時，日均就等於當天金額，不另外顯示
+  $('kAvgCard').hidden = unit === 'day';
+  $('kAvgLabel').textContent = `${lc}${sep}日均金額（與${U.prevName}比較）`;
+  $('kAvg').textContent = money(cur.avg);
+  setDelta($('kAvgDelta'), pctChange(cur.avg, pre.avg), vs);
+
+  const notes = [];
+  const curName = unit === 'month' ? lc : `${U.cur}（${lc}）`;
+  if (cur.days < U.length(latest)) notes.push(`${curName}只有 ${cur.days} 天資料，合計金額和${U.prevName}比會偏低，請參考日均金額。`);
+  if (pre.days && pre.days < U.length(prev)) notes.push(`${U.prevName}（${lp}）只有 ${pre.days} 天資料，請參考日均金額。`);
+  if (!pre.days) notes.push(`${U.prevName}（${lp}）沒有資料，無法比較。`);
+  else if (cur.channels.join() !== pre.channels.join())
+    notes.push(`${lc}（${cur.channels.join('、')}）和 ${lp}（${pre.channels.join('、')}）的資料來自不同通路，比較僅供參考。`);
+  const box = $('notes');
+  box.hidden = !notes.length;
+  box.textContent = notes.join(' ');
+}
+
+function setDelta(el, pct, prevLabel) {
+  if (pct === null) { el.className = 'delta flat'; el.textContent = `${prevLabel}無資料`; return; }
+  const dir = pct > 0.05 ? 'up' : pct < -0.05 ? 'down' : 'flat';
+  const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '－';
+  el.className = 'delta ' + dir;
+  el.textContent = `${arrow} ${pct > 0 ? '+' : ''}${pct.toFixed(1)}% vs ${prevLabel}`;
+}
+
+function legend(el, channels) {
+  el.replaceChildren(...channels.map(c => {
+    const s = document.createElement('span');
+    const sw = document.createElement('i');
+    sw.className = 'swatch'; sw.style.background = channelColor(c);
+    s.append(sw, c);
+    return s;
+  }));
+}
+
+function draw(name, config) {
+  if (charts[name]) charts[name].destroy();
+  charts[name] = new Chart($(name), config);
+}
+
+// 長條末端顯示數值
+const endLabels = {
+  id: 'endLabels',
+  afterDatasetsDraw(chart, _args, opts) {
+    if (!opts.values) return;
+    const { ctx, scales: { x, y } } = chart;
+    ctx.save();
+    ctx.font = `12px ${Chart.defaults.font.family}`;
+    ctx.fillStyle = opts.color;
+    ctx.textBaseline = 'middle';
+    opts.values.forEach((v, i) => ctx.fillText(opts.format(v), x.getPixelForValue(v) + 6, y.getPixelForValue(i)));
+    ctx.restore();
+  }
+};
+
+function valueAxis(theme, extra) {
+  return Object.assign({
+    beginAtZero: true,
+    grid: { color: theme.grid },
+    border: { display: false },
+    ticks: { callback: v => wan(v), maxTicksLimit: 6 }
+  }, extra);
+}
+
+const tooltipBase = { padding: 10, boxPadding: 4, usePointStyle: true };
+
+function renderTrend(df, channels, theme) {
+  const unit = state.unit, U = UNITS[unit], field = U.field;
+  $('trendTitle').textContent = U.name + '銷售趨勢';
+  $('trendCaption').textContent = '每個通路一條線。滑鼠移到點上（手機用手指點）可看詳細數字' +
+    (unit === 'day' ? '。' : unit === 'week'
+      ? '；一週為週一到週日，頭尾不滿 7 天的週合計會偏低。'
+      : '；不滿整月的月份合計會偏低。');
+
+  // 橫軸列出期間內每一期（含沒有資料的期間），讓日、週的間隔正確
+  const keys = [...new Set(df.map(r => r[field]))].sort();
+  const months = [];
+  for (let k = keys[0]; k <= keys[keys.length - 1]; ) {
+    months.push(k);
+    k = unit === 'day' ? addDays(k, 1) : unit === 'week' ? addDays(k, 7) : nextMonth(k);
+  }
+  const agg = new Map();   // 通路|期間 → {qty, amt, days}
+  for (const r of df) {
+    const k = r.ch + '|' + r[field];
+    if (!agg.has(k)) agg.set(k, { qty: 0, amt: 0, days: new Set() });
+    const a = agg.get(k);
+    a.qty += r.qty; a.amt += r.amt; a.days.add(r.date);
+  }
+  const datasets = channels.map(c => {
+    const cells = months.map(m => agg.get(c + '|' + m));
+    return {
+      label: c,
+      data: cells.map(a => (a ? a[state.metric] : null)),
+      days: cells.map(a => (a ? a.days.size : 0)),
+      borderColor: channelColor(c), backgroundColor: channelColor(c),
+      borderWidth: 2, pointRadius: unit === 'day' ? 0 : unit === 'week' ? 3 : 5, pointHoverRadius: 6,
+      pointHitRadius: 8,
+      pointBorderColor: theme.surface, pointBorderWidth: 2, tension: 0, spanGaps: false
+    };
+  }).filter(d => d.data.some(v => v !== null));
+  legend($('trendLegend'), datasets.map(d => d.label));
+
+  draw('trendChart', {
+    type: 'line',
+    data: { labels: months.map(U.axis), datasets },
+    options: {
+      maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: Object.assign({}, tooltipBase, {
+          filter: item => item.raw !== null,
+          callbacks: {
+            title: items => U.full(months[items[0].dataIndex]),
+            label: item => `${item.dataset.label}：${fmtMetric(item.raw)}` +
+              (unit === 'day' ? '' : `（${item.dataset.days[item.dataIndex]} 天）`)
+          }
+        })
+      },
+      scales: {
+        x: { grid: { display: false }, border: { color: theme.grid },
+             ticks: { maxRotation: 0, autoSkipPadding: 12 } },
+        y: valueAxis(theme, { grace: '10%' })
+      }
+    }
+  });
+}
+
+function renderChannels(df, channels, theme) {
+  const totals = new Map(channels.map(c => [c, 0]));
+  for (const r of df) totals.set(r.ch, totals.get(r.ch) + r[state.metric]);
+  const rows = [...totals].filter(([, v]) => v !== 0).sort((a, b) => b[1] - a[1]);
+  $('channelBox').style.height = Math.max(140, 56 * rows.length + 40) + 'px';
+
+  draw('channelChart', {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r[0]),
+      datasets: [{
+        data: rows.map(r => r[1]),
+        backgroundColor: rows.map(r => channelColor(r[0])),
+        borderRadius: 4, borderSkipped: 'start', maxBarThickness: 26
+      }]
+    },
+    options: {
+      indexAxis: 'y', maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: Object.assign({}, tooltipBase, { callbacks: { label: item => fmtMetric(item.raw) } }),
+        endLabels: { values: rows.map(r => r[1]), format: v => fmtInt(v), color: theme.text }
+      },
+      scales: {
+        x: valueAxis(theme, { grace: '30%' }),
+        y: { grid: { display: false }, border: { color: theme.grid } }
+      }
+    },
+    plugins: [endLabels]
+  });
+}
+
+function renderTop(df, channels, theme) {
+  const items = new Map();   // 品項 key → {name, code, total, byCh}
+  for (const r of df) {
+    if (!items.has(r.key)) items.set(r.key, { name: r.name, code: r.code, total: 0, byCh: {} });
+    const it = items.get(r.key), v = r[state.metric];
+    it.total += v;
+    it.byCh[r.ch] = (it.byCh[r.ch] || 0) + v;
+  }
+  const top = [...items.values()].sort((a, b) => b.total - a.total).slice(0, 10);
+  const used = channels.filter(c => top.some(t => t.byCh[c]));
+  legend($('topLegend'), used);
+  $('topBox').style.height = 36 * top.length + 50 + 'px';
+
+  const narrow = window.matchMedia('(max-width: 600px)').matches;
+  const maxLen = narrow ? 12 : 24;
+  // 手機上省略品牌前綴「DR.WU」，留空間給品名；完整品名在提示框和表格裡
+  const cut = s => {
+    if (narrow) s = s.replace(/^DR\.?\s*WU\s*/i, '');
+    return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
+  };
+
+  draw('topChart', {
+    type: 'bar',
+    data: {
+      labels: top.map(t => t.name),
+      datasets: used.map(c => ({
+        label: c,
+        data: top.map(t => t.byCh[c] || 0),
+        backgroundColor: channelColor(c),
+        borderColor: theme.surface, borderWidth: { left: 0, right: 1, top: 0, bottom: 0 },
+        maxBarThickness: 22
+      }))
+    },
+    options: {
+      indexAxis: 'y', maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'nearest', axis: 'y', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: Object.assign({}, tooltipBase, {
+          filter: item => item.raw !== 0,
+          callbacks: {
+            title: items => {
+              const t = top[items[0].dataIndex];
+              return t.code ? `${t.name}（${t.code}）` : t.name;
+            },
+            label: item => `${item.dataset.label}：${fmtMetric(item.raw)}`,
+            footer: items => `合計：${fmtMetric(top[items[0].dataIndex].total)}`
+          }
+        }),
+        endLabels: { values: top.map(t => t.total), format: v => fmtInt(v), color: theme.text }
+      },
+      scales: {
+        x: valueAxis(theme, { stacked: true, grace: '25%' }),
+        y: { stacked: true, grid: { display: false }, border: { color: theme.grid },
+             ticks: { autoSkip: false, callback: function (v) { return cut(this.getLabelForValue(v)); } } }
+      }
+    },
+    plugins: [endLabels]
+  });
+
+  // 表格檢視
+  const table = $('topTable');
+  const head = ['名次', '品項', ...used, '合計'];
+  const tr = cells => {
+    const row = document.createElement('tr');
+    cells.forEach(([text, cls, tag]) => {
+      const c = document.createElement(tag || 'td');
+      c.textContent = text;
+      if (cls) c.className = cls;
+      row.append(c);
+    });
+    return row;
+  };
+  table.replaceChildren(
+    tr(head.map((h, i) => [h, i >= 2 ? 'num' : '', 'th'])),
+    ...top.map((t, i) => tr([[String(i + 1)], [t.code ? `${t.name}（${t.code}）` : t.name],
+      ...used.map(c => [fmtInt(t.byCh[c] || 0), 'num']), [fmtInt(t.total), 'num']]))
+  );
+}
+
+// 深淺色切換或手機轉向時重畫
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => state.records.length && render());
+// 品名截斷長度依寬度而定，跨過手機寬度時才重畫（Chart.js 本身會自動縮放）
+window.matchMedia('(max-width: 600px)').addEventListener('change', () => state.records.length && render());
+</script>
+</body>
+</html>
