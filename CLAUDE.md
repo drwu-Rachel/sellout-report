@@ -15,6 +15,8 @@
 - `docs\format.md`：統一格式、各通路欄位對應與處理規則的完整說明（改了整理程式要一併更新）
 - `scripts\clean_sellout.py`：整理程式（Python），跑完會自動更新 Dashboard。整理邏輯拆成函式，`clean_files([(檔名, bytes)], 對照表)` 回傳整理結果與問題列、不寫檔，命令列和 `app.py` 共用
 - `scripts\build_dashboard.py`：用 `sellout_daily.csv` 產生 Dashboard（也可單獨執行）
+- `scripts\weekly_report.py`：用 `sellout_daily.csv` 計算各通路本週 vs 上週，產生 `output\週報_<本週最後一天>.md`；搭配 `.claude\skills\weekly-report` skill，由 Claude 填入 3 句重點結論
+- `output`：週報，含銷售資料，不放進 Git、不要上傳或分享到外部
 - `app.py`：Streamlit 網頁，上傳 Excel → 整理 → 篩選、指標、圖表 → 下載 Excel
 - `.streamlit\config.toml`：Streamlit 設定（只允許本機開啟、主色藍色）
 - `dashboard\template.html`：Dashboard 樣板，要改畫面就改這個檔
