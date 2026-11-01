@@ -1,5 +1,9 @@
 # 銷售資料（原始 Excel 與整理結果）含敏感資料，不放進版本控制
 data/
+# 任何位置的 Excel、CSV 都不放進 Git
+*.xls
+*.xlsx
+*.csv
 # 產生出來的 Dashboard 內含銷售資料（樣板 template.html 要保留）
 dashboard/sellout_dashboard.html
 
